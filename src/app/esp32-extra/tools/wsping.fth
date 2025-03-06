@@ -8,13 +8,12 @@ needs lwip-send rcvfile.fth
 
 0 value prefix$
 #201 value master
-2variable range-gforth-servers
 
 : dec(.) ( n - adr$ cnt )
    base @ >r decimal (.) r> base ! ;
 
 : connect-udp-neigh? ( ip$ cnt - handle|0 )
-  2dup tmp$ place  ipaddr@ ipaddr$ compare
+  2dup tmp$ place  ip" compare
    if    udp-port# dec(.) tmp$ count udp-connect
    else  false
    then ;
@@ -22,7 +21,7 @@ needs lwip-send rcvfile.fth
 : SendUdpMsg+ip ( ip$ cnt msg cnt - )
    2swap connect-udp-neigh? dup 0>
      if    >r  htmlpage$  lplace
-           ipaddr@ ipaddr$  htmlpage$  +lplace
+           ip" htmlpage$  +lplace
            htmlpage$  lcount   space  2dup type
            r@ lwip-write drop
            r> lwip-close

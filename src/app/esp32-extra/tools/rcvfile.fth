@@ -1,4 +1,4 @@
-marker -rcvfile.fth  cr lastacf .name #19 to-column  .( 11-11-2023 ) \ By J.v.d.Ven
+marker -rcvfile.fth  cr lastacf .name #19 to-column  .( 23-02-2025 ) \ By J.v.d.Ven
 \ To receive an ASCII file over a wifi connection
 
 \ Needed in ROM
@@ -10,13 +10,15 @@ needs /circular      ../esp/extra.fth \       might be started in a task of task
 See https://github.com/Jos-Ven/A-smart-home-in-Forth for
 the needed _UploadServer.f and documentation (Installation_upload_server.pdf).
 
- New:
+New:
 26-06-2022
 Changed the timing for the ESP32.
 Added AnswerWsPing
 
 26-06-2022
 Adapted for the new webcontrols
+
+23-02-2025 Adapted for a sdcard
 [then]
 
 0 value exitRCV \ 1=EXIT after a FILE has been received,  2=QUIT after REBOOT has been hit on the server
@@ -115,7 +117,7 @@ variable tcp-server   tcp-server off
 : set-flash-server ( - )  &UdpData @ /num 2 * + #13 flash-server$ place ;
 
 : connect-server ( - )
-    #1000 TcpPORT$  flash-server$ count stream-connect
+   #1000 TcpPORT$  flash-server$ count stream-connect
     tcp-server ! ;
 
 : disconnect-server ( - )
@@ -138,7 +140,7 @@ variable tcp-server   tcp-server off
 : AnswerWsPing ( - )
    &UdpPacket 40  s" wsping " dup >r search
      if    &TcpBuffer off s" -2130706460 PingReply " &TcpBuffer lplace
-           ipaddr@ ipaddr$  &TcpBuffer +lplace
+           ip"  &TcpBuffer +lplace
            r> /string 2dup  0 scan nip -
            udp-port# (.) 2swap udp-connect
            &TcpBuffer lcount rot lwip-send
@@ -325,7 +327,7 @@ also forth definitions
 
 : receiver-msg
    bold ." The receiver" norm ."  is waiting for a file on UDP port: "  udp-port# .d
-        ." at: " ipaddr@ .ipaddr cr ;
+        ." at: " .ip cr ;
 
 s" switch-regs"      $find nip [IF] \ Check for preemptive multitasking
 
@@ -336,16 +338,17 @@ s" switch-regs"      $find nip [IF] \ Check for preemptive multitasking
        again
     end-task ;
 
-: restart-msg ( - ) ." Restart cforth" ;
-: +rcv  ( - )   s" receiver" s" _receiver_bg.txt" file-it     restart-msg ;
-: -rcv  ( - )                s" _receiver_bg.txt" delete-file restart-msg ;
+: restart-msg ( - ) cr  s" Restart system. " type ;
+: +rcv  ( - )   s" receiver" s" /spiffs/_receiver_bg.txt" file-it  restart-msg  ;
+: -rcv  ( - )   s" /spiffs/_receiver_bg.txt" delete-file  drop     restart-msg   ;
 
 [THEN]
 
 : receiver ( -- )  \ To receive a file using the UDP protocol interactive.
     true to rcv-interactive?
-    wifi-logon-state  -2 =
-        if  #500000 us logon
+    cr bold ." Upload to: " get-path type norm cr
+    ipaddr@ @ 0=
+        if   logon
         then
     upd-init receiver-msg rcv-prompt
        begin  receive-udp-packets  stop-receiver? key? or
@@ -354,6 +357,27 @@ s" switch-regs"      $find nip [IF] \ Check for preemptive multitasking
 
 alias r receiver
 
-previous previous
+[IFDEF] TCP/IP
 
+TCP/IP DEFINITIONS ALSO HTML
+
+: /update ( - )
+   s" /spiffs/_receiver_bg.txt" file-exist?
+      if    s" The receiver runs in the background. " 2dup
+            cr type MsgPage
+      else  s" Waiting to receive a file from the upload server... " MsgPage
+            SendHtmlPage 30 ms
+            receiver
+      then ;
+
+: MsgPageReboot ( - )
+   s" Restarting the system, leave this page." MsgPage  SendHtmlPage  200 ms  reboot ;
+
+: /+rcv  ( - )  +rcv MsgPageReboot ;
+: /-rcv  ( - )  -rcv MsgPageReboot ;
+
+
+[THEN]
+
+ONLY FORTH ALSO DEFINITIONS
 \ \s

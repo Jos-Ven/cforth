@@ -1,15 +1,77 @@
-marker -webcontrols.fth  cr lastacf .name #19 to-column .( 05-12-2023 ) \ By J.v.d.Ven
+marker -webcontrols.fth  cr lastacf .name #19 to-column .( 23-02-2025 ) \ By J.v.d.Ven
+
+\ 18-11-2024 removed "border-radius:" from table, th and td
+\ 02-02-2025 Added: <hr>  <hrWH> sendstk
 
 needs /circular    extra.fth
 
 cell user xt-htmlpage \ MUST contain the XT that builds the web-page in the buffer at htmlpage$
                        \ ALL buttons must be evaluted before a new page is sent!
 
-: set-page ( xt - ) xt-htmlpage ! ;
-VOCABULARY TCP/IP
-: +t		( - ) also tcp/ip ;
+HIDDEN DEFINITIONS
 
-VOCABULARY HTML HTML DEFINITIONS
+4 value ./stack
+
+0 value (depth)
+
+: LogStackTop { adr-str -- }
+   depth  0<
+        if     clear s"   STK: Underflow." adr-str +place
+        else   s"   STK:" adr-str +place   (depth) dup 0=
+              if   drop s" Empty." adr-str +place
+              else s" (" adr-str +place (.) adr-str +place s" ) " adr-str +place
+                   depth ./stack min  dup 0
+                   ?do  dup  i - pick (.) adr-str +place
+                   s"  "  adr-str +place
+                  loop drop
+              then
+        then ;
+
+:  LogFStackTop  { adr-str -- }
+    s"  FP:" adr-str +place
+    fdepth 0<
+      if    s" Underflow." adr-str +place
+      else  fdepth  0=
+          if    s" Empty." adr-str +place
+          else  s" (" adr-str +place fdepth (.) adr-str +place s" ) " adr-str +place
+                fdepth 4 min dup 0
+                ?do  dup i - 1- fpick fstring adr-str +place
+                     s"  " adr-str +place
+                loop drop
+          then
+      then ;
+
+: (SendStk) ( server# xt - )
+   depth 2 - to (depth) (depth) 0<
+     if    clear  ." Stack underflow. "
+     else  s" \\ " LogLine$  place   ip"     LogLine$ +place
+           s" :"   LogLine$ +place   >name$  LogLine$  +place
+           >r  LogLine$  LogStackTop  LogLine$ LogFStackTop
+           LogLine$ count r> sendtcp
+     then ;
+
+
+FORTH DEFINITIONS ALSO HIDDEN
+
+: SendStk ( - )  \ For definitions in RAM
+   lastacf postpone literal  postpone (SendStk) ; immediate
+
+\ SendStk needs init-HtmlPage first. Then:
+\ : test  4 5 f# 1.2  f# 1.5  f# 1.6  201 SendStk ;  test
+\ If segment 192.168.0 is active then 192.168.0.201 will receive the stacks
+\ like: \\ 192.168.0.232:test   STK: 4 5   FP: 1.20 1.50 1.60
+
+PREVIOUS
+
+0 value /recv
+: .get     ( - )  req-buf  /recv  type ;
+: set-page ( xt - ) xt-htmlpage ! ;
+
+VOCABULARY TCP/IP   VOCABULARY HTML
+
+: +a ( - ) only forth also html also tcp/ip ;
+
+HTML DEFINITIONS
 
 : +1html	( char -- )  sp@ 1 +html drop ;
 : +crlf 	( -- )       crlf$ +html ;
@@ -99,6 +161,15 @@ VOCABULARY HTML HTML DEFINITIONS
 
 : (h.)		( n -- hexnum$ cnt )
     SignedDouble <#  base @ >r hex #s  r> base !  rot sign  #> ;
+
+
+: <hr>        ( color size -- )
+   +HTML| <hr size=|  "." +html
+   +HTML| width="100%" color=| "#h." +html >| ;
+
+: <hrWH>      ( color w h -- )
+   +HTML| <hr size=|  "." +html
+   +HTML| width=| "." +html   +HTML| px" color=| "#h." +html >| ;
 
 : <FontSizeColor> ( pxSize RgbColor - )
    +HTML| <font color=| "#h." +html
@@ -198,7 +269,7 @@ VOCABULARY HTML HTML DEFINITIONS
 
 : Html-title-header  ( adr cnt - )
    +html| <title>|
-   s" -" tmp$ lplace ipaddr@ ipaddr$ #10 /string tmp$ +lplace
+   s" -" tmp$ lplace ip" #10 /string tmp$ +lplace
     s" - " tmp$ +lplace tmp$ +lplace  tmp$ lcount +html  +html| </title>| ;
 
 : header-options ( - )
@@ -237,9 +308,6 @@ VOCABULARY HTML HTML DEFINITIONS
      +HTML| display: flex; |
      +HTML| flex-direction: column; } |
 
-   +HTML| table, th, td { |
-     +HTML| border-radius: 10px; } |
-
    +HTML| td { |
      +HTML| text-align:center; } |  ;
 
@@ -249,6 +317,17 @@ VOCABULARY HTML HTML DEFINITIONS
 : html-header  ( title cnt - )
   start-html-header  Html-title-header
   header-options header-styles end-header ;
+
+
+: MsgPage  ( msg$ cnt -- )
+   dup cell+ allocate drop dup >r lplace
+   s" Update " html-header
+   +HTML| <body>|     \ LeftTopStart
+   +HTML| <br><center>|
+   r@ lcount +HTML
+   +HTML| <center></body> </html>|
+   r> free drop ;
+
 
 TCP/IP DEFINITIONS
 
@@ -260,13 +339,13 @@ alias nn             noop
 alias order  order
 alias words  words
 alias reboot reboot
+alias +a     +a
 
-: +f       ( - ) only forth  ;
+: \\ ( - )  .get postpone \ ;
 
 ALSO HTML
 
 : /favicon.ico	( - ) favicon ; \ loads favicon at htmlpage$
-
 
 FORTH DEFINITIONS ALSO HTML
 
@@ -300,7 +379,7 @@ variable depth-target
     +html| </font></body></html>|  ;
 
 : evaluate_cleaned ( adr len - res-catch )
-  #255 min  evaluate
+  #255 min evaluate
   xt-htmlpage @ dup 0<>
     if    catch 0<>
             if     ." At web page: "
@@ -321,13 +400,12 @@ variable depth-target
     restore-stack     \ Restore the previous state
  ;
 
-
-: remove_seperator ( adr len char - ) \ replace them by a space
-   -rot bounds
-      ?do  i c@ over =
-             if   bl i c!
-             then
-      loop drop ;
+: remove_seperator ( adr len character - )
+   >r begin  r@ scan dup 0<> \ Character found?
+      while  bl 2 pick c!    \ Replace the involved character by a space
+             1 /string       \ Retry the remainder in adr' len'
+      repeat
+   r> 3drop ;
 
 : remove_seperators  ( adr len - )
   2dup [char] ? remove_seperator
@@ -335,13 +413,20 @@ variable depth-target
        [char] & remove_seperator ;
 
 : see-request ( adrRequest lenRequest -- )
+   cr bold .date .time norm
    cr ." Request: " 2dup type
    cut-line  \ Extract the line with GET
    2dup remove_seperators
-   dup #128 < if cr then  ." Evaluate: " 2dup type cr
-   evaluating_tcp/ip
+   dup #128 < if cr then ."  Evaluate: " 2dup type cr
+   evaluating_tcp/ip     SendHtmlPage
+   ." Html-page: " xt-htmlpage @  dup 0<>
+     if  .name
+     else   drop ." na"
+     then  cr
    20 0 do [char] - emit loop cr
-   SendHtmlPage xt-htmlpage off ;
+
+
+xt-htmlpage off ;
 
 : (handle-request) ( adrRequest lenRequest -- )
    cut-line  \ Extract the line with GET
@@ -354,6 +439,7 @@ defer handle-request   ' (handle-request) is handle-request
 $fff  constant SOL_SOCKET
 $80   constant SO_LINGER
 $1006 constant SO_RCVTIMEO
+$1005 constant SO_SNDTIMEO
 
 : SetSolOpt	( tcp-sock optval p2 p1 size - )
    >r pad 2! r> pad rot SOL_SOCKET 4 roll setsockopt drop ;
@@ -361,20 +447,21 @@ $1006 constant SO_RCVTIMEO
 \ Set SO_LINGER so lwip-close does not discard any pending data
 : linger-tcp ( handle - ) SO_LINGER 1 sp@ [ 2 cells ] literal SetSolOpt ;
 
-: recv		( sock -- length|-1 )
+: recv 		( sock -- length|-1 )
    dup >r SO_RCVTIMEO #200 1 [ 2 cells ] literal SetSolOpt
    req-buf /req-buf r> lwip-read ;
 
+
+defer req-buf-in    ' noop is req-buf-in
+
 : http-responder ( sock - )
-   dup to lsock  dup linger-tcp recv dup 0>
-     if   req-buf swap handle-request
+   htmlpage$ off dup to lsock recv dup 0>
+     if   req-buf-in  req-buf swap dup to /recv handle-request
      else drop
      then
    lsock lwip-close ;
 
 PREVIOUS PREVIOUS FORTH DEFINITIONS
-
-: .get ( - )  req-buf  /req-buf cut-line type ;
 
 
 \ \s

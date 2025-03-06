@@ -1,4 +1,4 @@
-marker svg_plotter.f  cr lastacf .name #19 to-column .( 15-10-2024 ) \ By J.v.d.Ven
+marker -svg_plotter.f  cr lastacf .name #19 to-column .( 02-02-2025 ) \ By J.v.d.Ven
  \ To plot simple charts for a web client
 
 

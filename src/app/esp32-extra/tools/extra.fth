@@ -1,12 +1,16 @@
-marker -extra.fth  cr lastacf .name #19 to-column .( 23-10-2024 ) \ By J.v.d.Ven
-
+marker -extra.fth  cr lastacf .name #19 to-column .( 14-02-2025 ) \ By J.v.d.Ven
 \ Additional words I often use.
+
+\ 14-02-2025: Replaced TcpPort by SelectTcpPort
 
 alias b   bye
 alias cls reset-terminal
 alias h.  .h
 alias word-join  wljoin
 alias word-split lwsplit
+
+: [defined]  ( "aword" -- f1 )
+   $defined  if  drop true  else  2drop false  then ;
 
 : lower-char ( C -- c )
    dup [char] A [char] Z between
@@ -59,10 +63,10 @@ variable >top_fast_mem   >top_fast_mem off \ -/- 34 bytes used by the os
 : sysledOn          ( -- )  1 sysled gpio-pin!    ;
 : sysledOff         ( -- )  0 sysled gpio-pin!    ;
 
-#60000 to wifi-timeout
+#6000 to wifi-timeout
 : wifi-open-station ( retr wifi-timeout wifi-storage &ss sscnt  &pw pwcnt - flag )
 \    0 " wifi" log-level!
-    5 roll 10 ms wifi-open nip nip ;
+    5 roll wifi-open nip nip ;
 
 \ For an extra uart
 0    value uart_num
@@ -157,6 +161,8 @@ f# 180e3 fvalue next-measurement
 : 4drop       ( n4 n3 n2 n1 -- )   2drop 2drop ;
 : (number?)   ( addr len -- d1 f1 )  $number?  if   true   else 0. false  then ;
 : -ftrunc     ( f: n - -ftrunc )   fdup ftrunc f-  ;
+: fint        ( f: r.x - r )  fdup f0<   if   fceil    else  floor  then ;
+
 : f2drop      ( fs: r1 r2 -- )     fdrop fdrop ;
 : dup>r       ( n1 -- n1 ) ( R: -- n1 ) s" dup >r"  evaluate ; immediate
 
@@ -204,10 +210,15 @@ patch check-conditional here <resolve
    does>  ( adr -- adr' )  @ + ;
 
 : field:     ( n1 <"name"> -- n2 ) ( addr -- 'addr )  aligned cell +field ;
+: cfield:    ( n1 <"name"> -- n2 ) ( addr -- 'addr )  1 chars +field ;
 : bfield:    ( n1 <"name"> -- n2 ) ( addr -- 'addr )  1 +field ;
 : wfield:    ( n1 <"name"> -- n2 ) ( addr -- 'addr )  2 +field ;
 : lfield:    ( n1 <"name"> -- n2 ) ( addr -- 'addr )  4 +field ;
 : xfield:    ( n1 <"name"> -- n2 ) ( addr -- 'addr )  8 +field ;
+
+ENVIRONMENT DEFINITIONS
+      : X:STRUCTURES ;
+FORTH DEFINITIONS
 
 : f2dup   ( fs: r1 r2 -- r1 r2 r1 r2 )  fover fover ;
 : perform ( adr - )  s" @ execute " evaluate ; immediate
@@ -352,15 +363,6 @@ PREVIOUS
 : NextString ( a n delimiter -- a1 n1 )
     >r  2dup r> scan nip - ;
 
-: SkipDots ( str$ count #dots - remains$ count )
-   0  do [char] . scan dup 0=
-            if    leave
-            then
-         1 /string
-      loop ;
-
-: my-host-id" ( - adr cnt ) ipaddr@ ipaddr$ 3 SkipDots ; \ IP4
-
 : GetValue ( adrOf-Number+limiter length limiter - n flag )
     NextString over c@ [char] - = dup >r
          if    1 /string
@@ -372,8 +374,12 @@ PREVIOUS
          else  r> drop 2drop 0 0
          then ;
 
+0     value lsock
+0     value HtmlPage$  \ To collect html for streaming.
+#6000 value /HtmlPage
+
 : DeepSleep ( sec - )
-   [ifdef] esp-wifi-stop  esp-wifi-stop  spiffs-unmount 3 rtc-clk-cpu-freq-set
+   [ifdef] esp-wifi-stop esp-wifi-stop  spiffs-unmount 3 rtc-clk-cpu-freq-set
    [else]  wifi-off
    [then]
    1 max deep-sleep ;
@@ -385,11 +391,9 @@ PREVIOUS
 : .#-> [char] . hold  #s rot sign #>  ;
 : (f.2) ( f -- ) ( -- c-addr u )  f# 100e0  f>dint <# # # .#-> ;
 : (f.1) ( f -- ) ( -- c-addr u )  f# 10e0   f>dint <# # .#-> ;
-: ip4Host ( adr cnt - ) ipaddr@ ipaddr$ #10 /string ;
-
-0     value lsock
-0     value HtmlPage$  \ To collect html for streaming.
-#6000 value /HtmlPage
+: ip"     ( -- adr cnt  )         ipaddr@ ipaddr$ ;
+: ip4Host ( adr cnt -- )          ip" #10 /string ;
+: .ip     ( -- )                  ip" type ;
 
 : SendHtmlPage ( - )
    HtmlPage$ lcount dup 0>
@@ -410,11 +414,14 @@ PREVIOUS
     htmlpage$ +lplace ;
 
 0 value tmp$
+0 value LogLine$ \ To show stacks on a remote system
 
 : init-HtmlPage ( - )
     /HtmlPage cell+ allocate
     abort" Allocating HtmlPage failed " dup to HtmlPage$ off
-    255 allocate   abort" Allocating tmp$ failed "  to tmp$ ;
+    #255 allocate   abort" Allocating tmp$ failed "     to tmp$
+    #255 allocate   abort" Allocating LogLine$ failed " to  LogLine$
+;
 
 : rjust ( a u width char -- a2 u2 )
    >r over - 0 max dup tmp$ !
@@ -493,36 +500,57 @@ PREVIOUS
        ." Enter Password:" pad dup 50 accept r> place ;
 
 \ Retries: -1 for unlimited, 0 for none, otherwise that many
-2 value wifi-#retries
-0 value wifi-storage
+ 2 value wifi-#retries
+ 0 value wifi-storage
 -2 value wifi-logon-state   \ -2 not tried   -1 logon failed    0 Logon OK
+ 0 value #wifi-atempts
 
 : wifi-station-on  { &ss sscnt &pw pwcnt -- }
-    wifi-mode@ case
-      1 of ipaddr@ @ 0=
-                if  ." >>> Try a reboot and SET-SSID if needed." cr
-                then           endof
-      2 of  ." WiFi is already on in AP mode; type wifi-off to stop it"     cr endof
-      3 of  ." WiFi is already on in Sta+AP mode; type wifi-off to stop it" cr endof
-            cr ." Connecting to wifi: " &ss sscnt type cr
+    base @ >r decimal ms@ >r
+    3 0 do  cr i dup to #wifi-atempts  . ." connecting to wifi: " &ss sscnt type
             wifi-#retries wifi-timeout wifi-storage
             &ss sscnt  &pw pwcnt wifi-open-station
                 if   -1 to wifi-logon-state
-                      cr ." >>> WiFi station connection failed. Try SET-SSID" cr
-                else  0 to wifi-logon-state
+                      cr ." WiFi station connection failed. Retrying..." cr
                 then
-    endcase ;
+          ipaddr@ @ if leave then
+          # 6000 ms
+       loop
+     wifi-mode@ case
+      1 of ipaddr@ @ 0=
+              if  ." >>> Try a reboot and SET-SSID if needed." cr
+              else  0 to wifi-logon-state
+              then           endof
+      2 of  ." WiFi is already on in AP mode; type wifi-off to stop it"     cr endof
+      3 of  ." WiFi is already on in Sta+AP mode; type wifi-off to stop it" cr endof
+    endcase
+    ms@ r> - space . ." ms. " cr r> base !
+;
 
-create TcpPort$ ," 8080"     create UdpPort$ ," 8899"
+2variable UdpPort$ s" 8899" UdpPort$ place
+2variable sendtcpStats    \ Map: host-id  #written
+
+2variable range-gforth-servers
 
 : UdpWrite ( send$ cnt ip-server$ - )
    count UdpPort$ count 2swap udp-connect
    >r   r@ lwip-write  50 ms  r> lwip-close drop ;
 
-: TcpWrite ( bufer cnt ip-server$ - )
-   >r #1000 TcpPort$ count r> count stream-connect >r
-   r@ lwip-write drop 50 ms
+: SelectTcpPort ( ip-server$ - port )
+   count dup 3 - /string evaluate
+   range-gforth-servers 2@ + <=
+     if  #8080  else  #80  then ;
+
+: TcpWrite ( buffer cnt ip-server$ - )
+   -1 sendtcpStats !
+   >r #2000 r@ SelectTcpPort (.) r> count stream-connect >r
+   r@ lwip-write sendtcpStats cell+ ! 50 ms
    r> lwip-close ;
+
+: sendtcp ( buffer cnt to-host - ) \ to-host = receiver on the same network
+   dup  >r ip4Host ip" rot - tmp$ place drop \  Save network part
+   (.) tmp$ +place   \ Add the host (last octet)
+   tmp$ TcpWrite r> sendtcpStats ! ;
 
 \ After "WiFi station connection failed":
 \ Reboot and remove wifi_connect.fth then enter logon
@@ -549,9 +577,9 @@ create TcpPort$ ," 8080"     create UdpPort$ ," 8899"
 
 : logon ( -- )
       s" wifi_connect.fth" file-exist?
-        if   s" wifi_connect.fth" included #35 ms
-             9 0  do  ipaddr@ @ 0<>   if   leave   then  i . #2000 ms
-                  loop
+        if   s" wifi_connect.fth" included 500 ms
+             \ 9 0  do  ipaddr@ @ 0<>   if   leave   then  i . #2000 ms
+             \     loop
         else set-ssid
         then  ;
 

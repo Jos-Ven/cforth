@@ -1,4 +1,4 @@
-marker -timediff.fth cr lastacf .name #19 to-column .( 14-12-2023 ) \ By J.v.d.Ven
+marker -timediff.fth cr lastacf .name #19 to-column .( 02-02-2025 ) \ By J.v.d.Ven
 
 f# -1 fvalue UtcSunRise
 f# -1 fvalue UtcSunSet
@@ -229,8 +229,8 @@ end-structure
    fdup  find-utc-offset-at-utc   f+ ;
 
 
-: LocalTics-from-UtcTics ( f: UtcTics - LocalTics ) tz-local find-utc-offset f+ ;
-: UtcTics-from-LocalTics ( f: UtcTics - LocalTics ) tz-local find-utc-offset f- ;
+: LocalTics-from-UtcTics ( f: UtcTics   - LocalTics ) tz-local find-utc-offset f+ ;
+: UtcTics-from-LocalTics ( f: LocalTics - UtcTics ) tz-local find-utc-offset f- ;
 
 : date-from-utc-time     ( F: UtcTics - ) ( - dd mm yearLocal )
     LocalTics-from-UtcTics Date-from-UtcTics ;
@@ -339,14 +339,14 @@ f# 86400e0 fconstant #SecondsToDay
 
 : GetTcpTime ( - ) \ Sends: my-net-id" Ask_time
    HtmlPage$ off
-   my-host-id" HtmlPage$ lplace
+   ip4Host HtmlPage$ lplace
    s"  Ask_time" HtmlPage$ +lplace
    HtmlPage$ lcount time-server$ TcpWrite  ;
 
-: SetLocalTime (  LocalTics UtcOffset sunrise sunset - )
+: SetLocalTime (  UTC-Tics UtcOffset sunrise sunset - )
    s>f LocalTics-from-UtcTics to UtcSunSet         \ In local time
    s>f LocalTics-from-UtcTics to UtcSunRise  drop  \ In local time
-   s>f UtcTics-from-LocalTics f>s set-system-time  ; \ In UTC!
+   set-system-time  ; \ Needs time in UTC!
 
 : AskTime ( - )                            \ Adapt if needed!
    time-server$ 0<>
@@ -418,8 +418,8 @@ f# 86400e0 fconstant #SecondsToDay
 
 : set-time     ( - )              \ Manual input for time
    base @ decimal
-   enter-date-time                \ Got the time in LOCAL time
-     if    >r UtcTics-from-Time&Date  f>s
+   enter-date-time                \ Enter the time in LOCAL time
+     if    >r UtcTics-from-Time&Date UtcTics-from-LocalTics f>s \ The clock should run in UTC-time
            r> 0 0 SetLocalTime    \ sunrise and sunset are ignored here.
            space .date .time
      else  3drop 3drop drop cr ." Bad Time/date."

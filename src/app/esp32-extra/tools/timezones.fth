@@ -1,4 +1,4 @@
-marker -timezones.f cr cr lastacf .name #19 to-column .( 23-04-2025 )
+marker -timezones.fth cr cr lastacf .name #19 to-column .( 07-05-2025 )
 
 0 [if]
 Ref: https://en.wikipedia.org/wiki/Daylight_saving_time_by_country

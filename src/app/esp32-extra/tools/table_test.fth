@@ -1,9 +1,9 @@
-marker table_test.f  \ 29-06-2023 by J.v.d.Ven
+marker -table_test.fth  \ 07-05-2025 by J.v.d.Ven
 
 s" cforth" ENVIRONMENT? [IF] drop \ For the extended version on an ESP32
 DECIMAL                           \ table_test.f must loaded in RAM on an ESP32
 
-needs table-sort table_sort.f
+needs table-sort table_sort.fth
 2000 value #test-records          \ Only small tables are possible
 
 [ELSE]
@@ -85,26 +85,22 @@ wTasks myTasks    Start: myTasks
 : nt>test.chars ( n &table - &sorted-test.chars ) nt>record >test.chars ;
 
 : check-keys  { &tbl -- }
-    &tbl >#records @ 1- 0
-    do   i    &tbl nt>test.group @
-         i 1+ &tbl nt>test.group @  2dup =
-              if   2drop      \ The same group
-                   i     &tbl nt>test.chars
-                   i 1+  &tbl nt>test.chars  #chars tuck compare 0>
-                        if i 1+ . ." #chars UN" leave
-                        then
-              else  >
-                       if i 1+ . ." group UN"  leave
-                       then
-              then
-    loop ." sorted "  ;
+   &tbl >#records @ 1- 0  do
+      i  &tbl nt>test.group @
+      i 1+ &tbl nt>test.group @  2dup =  if
+         2drop  i &tbl nt>test.chars \ The same group
+         i 1+  &tbl nt>test.chars  #chars tuck compare 0>  if
+            i 1+ . ." #chars UN" leave
+         then
+      else  >  if i 1+ . ." group UN"  leave  then
+      then
+   loop ." sorted "  ;
 
 : init-test-table   ( &table #records  - )
    >r #chars 1 cells + over >record-size !
-   r> over >#records ! >r
-   r@ table-size   allocate            \ allocates the records
-        if cr ." The allocation of records failed. " quit
-        then  r@ !
+   r> over >#records ! >r r@ table-size allocate  if   \ allocates the records
+      cr ." The allocation of records failed. " quit
+   then  r@ !
    r@ >#records @  allocate-ptrs       \ allocates the the address pointers
    dup r@ >table-aptrs !
    r@ >record-size @ r> >#records @  build-ptrs ;

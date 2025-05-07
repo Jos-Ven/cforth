@@ -1,5 +1,5 @@
-marker -schedule-tool.f  s" cforth" ENVIRONMENT?
-   [IF]   drop cr lastacf .name #19 to-column .( 02-02-2025 ) \ By J.v.d.Ven
+marker -schedule-tool.fth  s" cforth" ENVIRONMENT?
+   [IF]   drop cr lastacf .name #19 to-column .( 07-05-2025 ) \ By J.v.d.Ven
    [THEN]
 
 0 [if]
@@ -381,7 +381,7 @@ TCP/IP DEFINITIONS
 
 also html
 
-: Reboot. ( - )  MsgPageReboot ; 
+: Reboot. ( - )  MsgPageReboot ;
 
 S" cforth" ENVIRONMENT? [IF] DROP
         : clr-req-buf ( -- )    req-buf /req-buf s" %3A" BlankString 2drop ;

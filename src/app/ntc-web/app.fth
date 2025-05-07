@@ -73,14 +73,14 @@ fl server.fth
 fl tasking_rtos.fth        \ Preemptive multitasking
 
 fl tools/extra.fth
-fl tools/table_sort.f
-fl tools/timezones.f
+fl tools/table_sort.fth
+fl tools/timezones.fth
 fl tools/timediff.fth      \ Time calculations
 fl tools/webcontrols.fth   \ Extra tags in ROM
-fl tools/svg_plotter.f
+fl tools/svg_plotter.fth
 fl tools/rcvfile.fth
 fl tools/wsping.fth
-fl tools/schedule-tool.f   \ Daily schedule
+fl tools/schedule-tool.fth \ Daily schedule
 fl ../ntc-web/ntc_steinhart.fth
 
 : interrupt?  ( -- flag )

@@ -30,33 +30,33 @@ alias m-init noop
 ;
 
 : ms>ticks  ( ms -- ticks )
-   esp-clk-cpu-freq #80000000 over =
-     if    drop
-     else  #240000000 =
-             if   exit
-             else #1 lshift
-             then
-     then  #3 /
+   esp-clk-cpu-freq #80000000 over =  if
+      drop
+   else
+      #240000000 =  if  exit  else  #1 lshift  then
+   then  #3 /
 ;
 
 : system-time>f ( us seconds -- ) ( f: -- us )
-   s" s>d d>f f# 1000000 f*  s>d d>f  f+ "  evaluate ; immediate
+   s" s>d d>f f# 1.0e6 f*  s>d d>f  f+ "  evaluate
+; immediate
 
-: usf@         ( f: -- us )
-   s" dup dup sp@ get-system-time! system-time>f" evaluate ; immediate
+: usf@ ( f: -- us )
+   s" 0. sp@ get-system-time! system-time>f" evaluate  ; immediate
 
-: ms@         ( -- ms ) f# .001 usf@ f* f>d drop ;
+: ms@  ( -- ms ) f# 1.0e-3 usf@ f* f>d d>s  ;
 
 alias get-msecs ms@
 
 : fus  ( f: us - )
-   usf@  f+
-     begin   fdup  usf@  f- f# 100000000 f>
-     while   #100000000 us
-     repeat
-   usf@  f- f>d drop abs us ;
+   usf@  f+  begin
+      fdup  usf@  f- f# 1.0e8 f>
+   while   #100000000 us
+   repeat
+   usf@  f- f>d d>s abs us
+;
 
-: ms ( ms -- )   s>d d>f f# 1000 f* fus ;
+: ms   ( ms -- )   s>d d>f f# 1.0e3 f* fus ;
 
 fl wifi.fth
 
@@ -92,18 +92,19 @@ fl ../sps30/sps30.fth      \ For sps30_web.fth
 : load-startup-file  ( -- ior )   " start" ['] included catch   ;
 
 : app ( - ) \ Sometimes SPIFFS or a wifi connection causes an error. A reboot solves that.
-   banner  hex  interrupt? 0=
-      if     s" start" file-exist?
-           if   load-startup-file
-                if   ." Reading SPIFFS. " cr interrupt? 0=
-                    if    reboot
-                    then
-                then
-           then
+   banner  hex  interrupt? 0=  if
+      s" start" file-exist?  if
+         load-startup-file  if
+            ." Reading SPIFFS. " cr interrupt? 0=  if
+               reboot
+            then
+         then
       then
+   then
    quit
 ;
 
+cr  bold .( ******* App: sps30 ******* )  norm cr cr
 alias id: \
 
 " app.dic" save

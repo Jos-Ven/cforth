@@ -10,7 +10,7 @@ s" MachineSettings.fth" file-exist?  \ For av-trim sensor-web$ and msg-board$
   [if]    fl MachineSettings.fth
   [then]
 
-marker -ntc_web.fth  cr lastacf .name #19 to-column .( 04-05-2025 ) \ By J.v.d.Ven
+marker -ntc_web.fth  cr lastacf .name #19 to-column .( 07-05-2025 ) \ By J.v.d.Ven
 
 DECIMAL ALSO HTML
 
@@ -277,8 +277,8 @@ f# 5e0 f# 60e0 f* fvalue fcycle-time \ Time between two records in &CBdata
   else
      <NoData>
   then
-  tdR> .forth-driven  <td>
-  /tr> ;
+  <tdR> .forth-driven  <td>
+  </tr> ;
 
 : start-ntc-page ( - )
    s" Ntc " html-header  +HTML| <body bgcolor="#FEFFE6">|

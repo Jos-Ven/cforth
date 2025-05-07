@@ -28,13 +28,15 @@ marker spi_master.fth  cr lastacf .name #19 to-column .( 17-05-2024 )
 ;
 : spi-master-write  ( &buffer size - )
    dup /SpiBufLimit /mod nip dup 0>  if
-   2 pick swap /SpiBufLimit * dup >r bounds   do
-           /SpiBufLimit  i pad spi_handle spi-master-data
-                   abort" spi-master-data failed"
-           /SpiBufLimit +loop
-           r> /string
-       else   drop
-       then
+      2 pick swap /SpiBufLimit * dup >r bounds  do
+          /SpiBufLimit  i pad spi_handle spi-master-data
+          abort" spi-master-data failed"
+          /SpiBufLimit
+      +loop
+       r> /string
+    else
+       drop
+    then
     swap pad spi_handle spi-master-data abort" spi-send-data failed"
 ;
 \ \s

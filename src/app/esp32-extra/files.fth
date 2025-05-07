@@ -86,10 +86,10 @@ alias ls dir
 
 0 value fid
 : close-fid  ( -- )  fid close-file drop  ;
-: create-fid  ( filename$ -- )  w/o create-file abort" Can't create file"  to fid  ;
+: create-fid ( filename$ -- )  w/o create-file abort" Can't create file"  to fid  ;
 : write-fid  ( adr len -- )  fid write-file abort" File write error"  ;
-: open-fid  ( filename$ -- )  r/o open-file abort" Can't open file" to fid  ;
-: read-fid  ( adr len -- actual )  fid read-file abort" File read error"  ;
+: open-fid   ( filename$ -- )  r/o open-file abort" Can't open file" to fid  ;
+: read-fid   ( adr len -- actual )  fid read-file abort" File read error"  ;
 : read-line-fid  ( adr len -- len more? )  fid read-line abort" File read error"  ;
 
 warning @ warning off

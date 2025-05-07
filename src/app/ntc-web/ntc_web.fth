@@ -1,34 +1,25 @@
-\ ntc_web.fth   to see the measured temperature of an NTC in a browser.
+\ ntc_web.fth   to see the measured temperature from a NTC in a browser.
 \ Compile this file in RAM when the ESP32 boots.
+
+[ifndef] av-ntc cr .( See readme.txt for installation. ) cr QUIT [THEN]
 
 0 value sensor-web$  \ Used when the sensorweb is not active at port 8899
 0 value msg-board$   \ Used when there is no message board at port 8899
 
-s" MachineSettings.fth" file-exist?  \ For sensor-web$ and msg-board$
-  [if]    fl MachineSettings.fth     \ if they exist
+s" MachineSettings.fth" file-exist?  \ For av-trim sensor-web$ and msg-board$
+  [if]    fl MachineSettings.fth
   [then]
 
-marker -ntc_web.fth  cr lastacf .name #19 to-column .( 11-11-2023 ) \ By J.v.d.Ven
-
-
-esp8266? [IF] cr .( Needs an extended version of Cforth on an ESP32. )
-cr .( See https://github.com/Jos-Ven/cforth/tree/WIP ) QUIT [THEN]
+marker -ntc_web.fth  cr lastacf .name #19 to-column .( 04-05-2025 ) \ By J.v.d.Ven
 
 DECIMAL ALSO HTML
 
 \ It expects the following files to be compiled in ROM:
-needs /circular      ../esp/extra.fth
-needs AskTime        ../esp/timediff.fth
-needs Html	     ../esp/webcontrols.fth
-needs -svg_plotter.f ../esp/svg_plotter.f
-needs av-ntc         ../esp/ntc_steinhart.fth
-
-0 [if]  Copy ntc_steinhart.fth to ~/cforth/src/app/esp
-        and add the line:
-fl ../esp/ntc_steinhart.fth
-        before the definition of interrupt?
-        in the file ~/forth/src/app/esp32/apt.fth
-[then]
+needs /circular      ../esp32-extra/tools/extra.fth
+needs AskTime        ../esp32-extra/tools/timediff.fth
+needs Html	     ../esp32-extra/tools//webcontrols.fth
+needs SetGrid        ../esp32-extra/tools/svg_plotter.f
+needs av-ntc         ../ntc-web/ntc_steinhart.fth
 
 5 constant adc-channel
 
@@ -41,33 +32,34 @@ DataItem: &NtcGraph     \ Proporties for the temperature line (color etc)
   0 value &CBdata  \ Pointer to the a circular buffer. Map 2 floats: TimeInUTC temperature
 960 value /CBdata  \ Max number of records in circular buffer for the temperature
 
+: ntc-temp ( - TempCelcius )  adc-channel adc-mv-av Vntc Rntc ntc-sh av-trim f+ ;
+
 0 [if]  \ Just for testing
 : +recs ( StartLevel NumberOfRecords - ) \ add test records
-   0
-       ?do   dup i + s>f
-             &CBdata >circular-head dup fdup f!
-             #1 floats + f!
-             &CBdata  incr-cbuf-count
-       loop drop ;
+   0 ?do
+      dup i + s>f
+      &CBdata >circular-head dup fdup f!
+      #1 floats + f!
+      &CBdata  incr-cbuf-count
+   loop drop ;
 
 : .datalines ( - )         \ See the records in the circular buffer.
-   &CBdata >max-records @ 0   \ Scan ALL records
-       ?do  i  &CBdata >circular f@  f0<>
-                if  cr  i &CBdata >circular  f@ fe.
-                        i &CBdata >circular  #1 floats + f@ fe.
-                then
-       loop ;
+   &CBdata >max-records @ 0  ?do   \ Scan ALL records
+      i  &CBdata >circular f@  f0<>  if
+         cr i &CBdata >circular  f@ fe.
+         i &CBdata >circular  #1 floats + f@ fe.
+      then
+   loop ;
 
 : .circular ( - )         \ See the records in the circular buffer.
    cr ." N   >circ-i    Tic          temp (C)"
-   &CBdata circular-range  \ Scan only the records in the circular-range
-       ?do   cr i dup . 3 spaces
-                &CBdata >circular-index dup . 5 spaces
-                &CBdata >record-cbuf dup f@ f. 2 spaces
-                #1 floats + f@ fe.
-       loop ;
+   &CBdata circular-range  ?do \ Scan only the records in the circular-range
+      cr i dup . 3 spaces
+      &CBdata >circular-index dup . 5 spaces
+      &CBdata >record-cbuf dup f@ f. 2 spaces
+      #1 floats + f@ fe.
+   loop ;
 [then]
-
 
 \ To send a msg to over the network.
 
@@ -100,15 +92,12 @@ variable #Floor  0 #Floor  !
        state$ lcount  sensor-web$  UdpWrite
    then ;
 
-decimal
-
 : sent-temp-hum-to-msgboard  ( - )
-    msg-board$ 0<>
-       if decimal
-          s" -2130706452 F0 T:" state$ lplace
-          latest-temperature @  #10 /  #256 * #256 * (.)  state$ +lplace
-          state$  lcount  msg-board$   UdpWrite
-       then ;
+   msg-board$ 0<>  if
+      decimal s" -2130706452 F0 T:" state$ lplace
+      latest-temperature @  #10 /  #256 * #256 * (.)  state$ +lplace
+      state$  lcount  msg-board$   UdpWrite
+   then ;
 
 0 [if] \ Some tests
 2234   latest-temperature ! sent-temp-hum-to-msgboard \ = 22
@@ -132,7 +121,6 @@ decimal
 -92   latest-temperature ! sent-temp-hum-to-msgboard \ = -9
 [then]
 
-
 f# 5e0 f# 60e0 f* fvalue fcycle-time \ Time between two records in &CBdata
 
 0 value next-measurement-ntc
@@ -141,19 +129,19 @@ f# 5e0 f# 60e0 f* fvalue fcycle-time \ Time between two records in &CBdata
 : (local-time-now) ( f: - tics-unchecked )   get-secs s>f localtics-from-utctics ;
 
 : set-next-measurement-ntc ( - )
-    (local-time-now) fdup fdup   fcycle-time f+
-    fcycle-time f/ ftrunc fcycle-time f*
-    fswap f- f# 3e0  f- f# 1e0 fmax
+   (local-time-now) fdup fdup   fcycle-time f+
+   fcycle-time f/ ftrunc fcycle-time f*
+   fswap f- f# 3e0  f- f# 1e0 fmax
    cr ." New results after:" fdup f. ." seconds  " f+ f>s to next-measurement-ntc ;
 
 : clear-CBdata ( &cBufParms - )
-   dup >r >&data-buffer @   r@ >max-records @ #fields floats * bounds
-        do  f# 0e0 i f!    [ 1 floats ] literal
-        +loop
+   dup >r >&data-buffer @   r@ >max-records @ #fields floats * bounds  do
+      f# 0e0 i f!    [ 1 floats ] literal
+   +loop
    r> >cbuf-count off ;
 
 : send-data ( - )        \ *2
-   av-ntc av-trim f+ fdup
+   av-ntc fdup
    f# 10e0 f* fround f# 10e0 f* f>s
    latest-temperature !  sent-temp-hum-to-msgboard Sent-state
    &CBdata >circular-head local-time-now dup f!
@@ -161,36 +149,34 @@ f# 5e0 f# 60e0 f* fvalue fcycle-time \ Time between two records in &CBdata
    1 to fmeasure-complete  ;
 
 : take-ntc-samples ( - )  \ *1
-   GotTime? 0=
-     if time-server$  0<>
-         if  check-time \ Get the time from a local network
-         \ else set-time  \ Input the time by hand.
-         then
-     then
-   adc-channel adc-mv-av Vntc Rntc ntc-sh
+   GotTime? 0=  if
+      time-server$  0<>  if
+         check-time \ Get the time from a local network
+      else
+         set-time  \ Input the time by hand.
+      then
+   then
+   ntc-temp
    &sample-buffer-ntc >circular-head f!
    &sample-buffer-ntc incr-cbuf-count
    &sample-buffer-ntc >cbuf-count @ #max-samples >=
-      if   ['] send-data SetStage
-      then
-    ;
+      if   ['] send-data SetStage  then ;
 
 : wait-for-next-sample ( - )  \ *5
-   (local-time-now) f>s next-measurement-ntc  > \  tTotal tElapsed?
-     if  .tcycle   stages-
-            if  ." End " &CBdata >cbuf-count ?  .time cr
-            then
-          tTotal start-timer usf@ to tcycle
-          ['] take-ntc-samples SetStage
-     then ;
+   (local-time-now) f>s next-measurement-ntc >  if  \  tTotal tElapsed?
+      .tcycle   stages- if
+         ." End " &CBdata >cbuf-count ?  .time cr
+      then
+   tTotal start-timer usf@ to tcycle
+   ['] take-ntc-samples SetStage
+   then ;
 
 : handle-ntc ( - )
-   'stage  execute
-   fmeasure-complete 1 =
-      if  0 to fmeasure-complete
-          set-next-measurement-ntc
-          ['] wait-for-next-sample SetStage
-      then ;
+   'stage  execute  fmeasure-complete 1 =  if
+      0 to fmeasure-complete
+      set-next-measurement-ntc
+      ['] wait-for-next-sample SetStage
+   then ;
 
 : add-data-header
    <tr>
@@ -202,8 +188,7 @@ f# 5e0 f# 60e0 f* fvalue fcycle-time \ Time between two records in &CBdata
 1 floats constant TempOffset
  $C30F3D constant TempColor
 
-: datapoint ( n>=0 - adr )
-   &CBdata >circular 1 floats + ;
+: datapoint ( n>=0 - adr )  &CBdata >circular 1 floats + ;
 
 : lastdatapoint ( #end #start &DataLine  - ) ( f: - val )
    3drop  &CBdata circular-range drop 1-
@@ -217,10 +202,11 @@ f# 5e0 f# 60e0 f* fvalue fcycle-time \ Time between two records in &CBdata
 : MoveLeft_InRightMargin ( #pixels - Y-pos ) SvgWidth swap - ;
 
 : .html-uu:mm (  f: UtcTics - )
-   fdup f0>=
-      if   bl
-      else fabs [char] -
-      then
+   fdup f0>=  if
+      bl
+   else
+      fabs [char] -
+   then
    >r Time-from-UtcTics
    r> swap ##$ +html
    [char] : swap ##$ +html  drop ;
@@ -265,63 +251,82 @@ f# 5e0 f# 60e0 f* fvalue fcycle-time \ Time between two records in &CBdata
    1 floats +  <tdR> f@  (f.3) +html </td>
    </tr>  ;
 
-
 : add-datalines-ntc ( - )
-   &CBdata circular-range drop dup  #20 - 0 max
-       ?do   i &CBdata >circular add-line-ntc
-       loop ;
+   &CBdata circular-range drop dup  #20 - 0 max  ?do
+      i &CBdata >circular add-line-ntc
+   loop ;
+
+:  <NoData> ( - )  <br>  +HTML| ------ No data yet. ------| <br> ;
 
 : html-chart ( - )
-   57 to RightMargin  65 to BottomMargin
-   InitSvgPlot
-   TempColor &NtcGraph >color !
-   find-interval  >r
-   #X_Lines dup 1- r@ * s>f to MaxXtop #Max_Y_Lines  SetGrid
-   r> &NtcGraph PlotDataLine
-   y-labels-left y-labels-right labelsBottom
-   </svg>
-   <tr> <tdL>  \ .HtmlSpace \ <br>
-   TempColor .Legend  +HTML| Temperature (C). |
-   &CBdata circular-range -  dup .html   +HTML|  records.|  2 <
-     if  +HTML|  The graph starts after 5 minutes.|
-     then  <td>
-   <tdR> .forth-driven  <td>
-   </tr> ;
+   &cbdata @  if
+     57 to RightMargin  65 to BottomMargin
+     InitSvgPlot
+     TempColor &NtcGraph >color !
+     find-interval  >r
+     #X_Lines dup 1- r@ * s>f to MaxXtop #Max_Y_Lines  SetGrid
+     r> &NtcGraph PlotDataLine
+     y-labels-left y-labels-right labelsBottom
+     </svg>
+     <tr> <tdL>
+     TempColor .Legend  +HTML| Temperature (C). |
+     &CBdata circular-range -  dup .html   +HTML|  records.|  2 <  if
+        +HTML|  The graph starts after 5 minutes.|
+     then
+     <td>
+  else
+     <NoData>
+  then
+  tdR> .forth-driven  <td>
+  /tr> ;
 
 : start-ntc-page ( - )
    s" Ntc " html-header  +HTML| <body bgcolor="#FEFFE6">|
    <center> <h4>
-   +HTML| <table border="0" cellpadding="0" cellspacing="2" width="20%">|
+   +HTML| <table border="0" cellpadding="0" cellspacing="2" width="30%">|
    <tr> <tdL> <fieldset> +html| <legend align="left">|
-         [ifdef] SitesIndex SitesIndex
-         [then] ;
+      [ifdef]   SitesIndex SitesIndex
+      [then] ;
 
-ALSO TCP/IP DEFINITIONS
-
-: /set_time_form  ( - )
+: set_time_form  ( - )
    start-ntc-page
    s" /home" s" Chart" <<TopLink>>
    <strong> +HTML| Ntc&nbsp;outside| </strong>  .HtmlSpace </legend>
    <br> +HTML| Set system date and time: |
    <br> <br> +HTML|  <form> <input type="datetime-local" name="sys_time_user" value="0"> |
    <br> <br> s" Set time" s" nn" <CssButton> </form>
-  </tr> </fieldset>   </td> </tr> </table>
-  </center>  </h4> </body> </html>
-;
+   </tr> </fieldset>   </td> </tr> </table>
+   </center>  </h4> </body> </html> ;
 
-: /home  ( - )
-   time-server$ GotTime? or
-   if   start-ntc-page
-        s" /set_time_form" s" Set time" <<TopLink>>
-        s" /list" s" List" <<TopLink>>
-            <strong> +HTML| Ntc Outside | </strong> +TimeDate/legend
-        +HTML| <table border="0" cellpadding="0" cellspacing="2"  heigth="1%" width="900px">|
-        html-chart
-        </table>
-         </fieldset> </td> </tr> </table>
-   else  /set_time_form  \ Need a local time first
+: home-page  ( - )
+   time-server$ GotTime? or  if
+      start-ntc-page
+      s" /set_time_form" s" Set time" <<TopLink>>
+      s" /list" s" List" <<TopLink>>
+      <strong> +HTML| Ntc | </strong> +TimeDate/legend
+      +HTML| <table border="0" cellpadding="0" cellspacing="2"  heigth="1%" width="900px">|
+      html-chart
+      </table>
+      </fieldset> </td> </tr> </table>
+   else
+      set_time_form  \ Need a local time first
    then  ;
 
+: List-page  ( -- )    \ Builds the HTML-page starting at HtmlPage$
+   start-ntc-page
+   s" /home" s" Chart" <<TopLink>>
+   <strong> +HTML| Ntc&nbsp;outside| </strong>  .HtmlSpace </legend>
+   +HTML| <table border="0" cellpadding="0" cellspacing="2"  width="50%">|
+              add-data-header add-datalines-ntc  </tr>
+          </table> </fieldset>
+  </td> </tr> </table>
+  </center>
+  </h4> </body> </html> ;
+
+ALSO TCP/IP DEFINITIONS
+
+: /home           ( - )  ['] home-page set-page ;
+: /set_time_form  ( - )  ['] set_time_form set-page ;
 
 : TcpTime ( UtcTics UtcOffset sunrise  sunset - ) \ Response to GetTcpTime see timediff.fth
    SetLocalTime tTotal start-timer cr .date .time cr usf@ to tcycle ;
@@ -335,27 +340,16 @@ ALSO TCP/IP DEFINITIONS
   evaluate nip 0
   swap rot \ - Y m d H m s
   3 roll 4 roll 5 roll
-  UtcTics-from-Time&Date f>s 0 0 0 SetLocalTime
-  tTotal start-timer GotTime? .
+  UtcTics-from-Time&Date UtcTics-from-LocalTics f>s 0 0 0 SetLocalTime
+  tTotal start-timer GotTime? . usf@ to tcycle  ['] take-ntc-samples SetStage
+  0 to fmeasure-complete
   cr .date .time cr
-  ['] /home set-page ;
-
+  /home ;
 
 : /List  ( -- )    \ /List Builds the HTML-page starting at HtmlPage$
-   start-ntc-page
-   s" /home" s" Chart" <<TopLink>>
-   <strong> +HTML| Ntc&nbsp;outside| </strong>  .HtmlSpace </legend>
-   +HTML| <table border="0" cellpadding="0" cellspacing="2"  width="50%">|
-              add-data-header add-datalines-ntc  </tr>
-          </table> </fieldset>
-   </td> </tr> </table>
-  </center>
-  </h4> </body> </html> ;
-
-
+   ['] List-page set-page  ;
 
 FORTH DEFINITIONS TCP/IP
-
 
 : sensor+http-responder  ( timeout -- ) \  Handles ntc + http-responder KEEP
    timed-accept ms@ >r stages-
@@ -366,34 +360,30 @@ FORTH DEFINITIONS TCP/IP
        then
    1000 ms@ r> - 0 max - 200 max ms>ticks to poll-interval ;
 
-
-#27 constant escape
-
 : program-loop ( - )
    begin
-      poll-interval responder
-      key?
-         if  key escape =
-               if    exit
-               else     begin key? while key drop repeat
-               then
+      poll-interval responder key?  if
+         key escape =  if
+            +a exit
+         else
+            begin  key?  while  key drop  repeat
          then
+      then
    again ;
 
 : try-logon ( - )
-    wifi-logon-state 0<>
-      if   8000 to wifi-timeout  #500 ms
-           logon 200 ms wifi-logon-state
-                if   esp-wifi-stop  100 ms [ 30 60 * ] literal deep-sleep \ Retry after 30 minutes
-                then
-      then ;
+   wifi-logon-state 0<> if
+      8000 to wifi-timeout  #500 ms
+      logon 200 ms wifi-logon-state  if
+          esp-wifi-stop  100 ms [ 30 60 * ] literal deep-sleep \ Retry after 30 minutes
+      then
+   then ;
 
 : init-res (  - )
-   adc-channel dup 3 3 init-ntc     2 set-precision
+   adc-channel 3 3 init-ntc 2 set-precision
    1 floats /sample-buffer-ntc allocate-cbuffer to &sample-buffer-ntc \ ADC
    clr-sample-buffer-ntc
-   f# 1.8e0 to av-trim
-   cr adc-mv-av Vntc Rntc ntc-sh fdup f.
+   cr ntc-temp fdup f.
    f# 10e0 f* fround f# 10e0 f* f>s latest-temperature !
    try-logon
    init-HtmlPage
@@ -403,43 +393,39 @@ FORTH DEFINITIONS TCP/IP
    http-listen tTotal start-timer ;
 
 : send_ask_time ( - )
-   time-server$ 0<>
-     if     cr ." Ask time from: " 100 ms time-server$ count type
-            ms@ >r asktime ms@ r> - dup space . ." ms "  1000 >
-                 if   cr ." Stream failed. Rebooting." 1500 ms
-                      esp-wifi-stop 200 ms 2 deep-sleep
-                 then
-     then ;
+   time-server$ 0<> if
+      cr ." Ask time from: " 100 ms time-server$ count type
+      ms@ >r asktime ms@ r> - dup space . ." ms "  1000 >  if
+         cr ." Stream failed. Rebooting." 1500 ms
+         esp-wifi-stop 200 ms 2 deep-sleep
+      then
+   then ;
 
-: .homepage-adr ( - )
-    bold ."  http://" ipaddr@ .ipaddr ." /home " norm  ;
+: .homepage-adr ( - )  bold ."  http://" .ip ." /home " norm  ;
 
 : start-web-server  ( -- )
-   cr htmlpage$ 0=
-       if    ['] sensor+http-responder to responder
-             init-res
-       else  ." Listening again."
-       then
-
+   cr htmlpage$ 0=  if
+      ['] sensor+http-responder to responder  init-res
+   else  ." Listening again."
+   then
    ['] take-ntc-samples SetStage
    set-next-measurement-ntc
    ALSO TCP/IP SEAL
    cr ." The first results appear after 2 minutes in the list." cr
    send_ask_time
    sent-temp-hum-to-msgboard Sent-state
-
    100 ms esp-clk-cpu-freq 1000000 / . ." Mhz "
    1000 ms>ticks to poll-interval
-   cr ." The home page of the webserver is:" .homepage-adr cr
+   cr ." The home page of the webserver is:" .homepage-adr
+   cr ." Hit <escape> for Forth"  cr
    program-loop         \ Contains the loop of the server
-   +f order cr quit ;
+   +a order cr quit ;
 
 : faster ( - )
    f# 1e0 to fcycle-time
    #1000 to next-measurement-ntc
    4 to /sample-buffer-ntc
    /sample-buffer-ntc to #max-samples ;
-
 
 PREVIOUS PREVIOUS
 

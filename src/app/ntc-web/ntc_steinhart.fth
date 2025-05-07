@@ -78,12 +78,12 @@ s" adc-mv" $find
 0 value state$
 
 : init-ntc ( adc-channel bit_precision attenuation -- )
-  /adc_chars allocate drop to &adc_chars
-  /state     allocate drop to state$
+   /adc_chars allocate drop to &adc_chars
+   /state     allocate drop to state$
    >r dup adc-width!   \ Assumes: vref, bit_precision and attenuation
    r@ rot adc-atten!   \ are the same for the used adc-channels.
-\ ( a.adc_chars i.vref i.bi_width i.atten i.adc_num -- i.res )
-  &adc_chars  vref   rot        r>      1 get-adc-chars drop ;
+\  ( a.adc_chars i.vref i.bi_width i.atten i.adc_num -- i.res )
+   &adc_chars   vref    rot        r>      1 get-adc-chars drop ;
 
 [else]
 
@@ -126,9 +126,9 @@ cr
 #10 constant #adc-samples
 
 : adc-mv-av    ( adc-channel - mV )
-   #adc-samples >r 0 r@ 0
-       do  over read-adc-mv +
-       loop
+   #adc-samples >r 0 r@ 0  do
+      over read-adc-mv +
+   loop
    r> / nip ;
 
 \ EG: One reading on adc-channel 5 with multisampling:
@@ -138,31 +138,29 @@ cr
  0  value &sample-buffer-ntc
 
 : .sample-buffer-ntc    { - }
-   /sample-buffer-ntc 0
-       do   cr  i dup . &sample-buffer-ntc >circular f@  fe.
-            i 0=
-               if ." --- To be used. ---"
-               then
-       loop ;
+   /sample-buffer-ntc 0  do
+      cr  i dup . &sample-buffer-ntc >circular f@  fe.  i 0=  if
+         ." --- To be used. ---"
+      then
+   loop ;
 
 : .ntc ( - )       \ Scans only the used records
    cr ." N  >circ-i  (C)"
-   &sample-buffer-ntc circular-range
-       ?do   cr i dup . 3 spaces &sample-buffer-ntc >circular-index dup . 5 spaces
-             &sample-buffer-ntc >record-cbuf
-             1 floats + f@ f.
-       loop ;
+   &sample-buffer-ntc circular-range  ?do
+      cr i dup . 3 spaces &sample-buffer-ntc >circular-index dup . 5 spaces
+      &sample-buffer-ntc >record-cbuf
+      1 floats + f@ f.
+   loop ;
 
 : clr-sample-buffer-ntc    ( - )
-   /sample-buffer-ntc 0
-       do   f# 0e0 i &sample-buffer-ntc >circular f!
-       loop
+   /sample-buffer-ntc 0  do
+      f# 0e0 i &sample-buffer-ntc >circular f!
+   loop
    &sample-buffer-ntc >cbuf-count off ;
 
 : av-ntc       ( f: - av-ntc )
-   f# 0e0 &sample-buffer-ntc >cbuf-count @ /sample-buffer-ntc min dup 0
-       do   i floats &sample-buffer-ntc >&data-buffer @ + f@ f+
-       loop
-   s>f f/ ;
+   f# 0e0 &sample-buffer-ntc >cbuf-count @ /sample-buffer-ntc min dup 0  do
+      i floats &sample-buffer-ntc >&data-buffer @ + f@ f+
+   loop  s>f f/ ;
 
 \ \s

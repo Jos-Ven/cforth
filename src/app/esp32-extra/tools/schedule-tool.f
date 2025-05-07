@@ -107,71 +107,6 @@ defer schedule-entry  \ When repeating is needed
 : reset-schedule-entry ( - )  ['] noop is schedule-entry ;
 reset-schedule-entry
 
-S" gforth" ENVIRONMENT? [IF] 2drop \ No polling under gforth
-
-0 value TaskSchedule
-
-
-: wait-if-later-today ( mmhh - )
-   time>mmhh 2359 <
-     if  time>mmhh over <
-           if   #2359 min WaitUntil
-           else drop
-           then
-     else  drop  60000 ms -1 scheduled !
-     then  ;
-
-: schedule ( - )      \ Execute entries for today that are waiting till the right time
-   next-scheduled-time time>mmhh <= \  All entries should be complete at 23:59
-           if     scheduled @ 1+ &schedule-table nt>record sched.record-->opt.record \ inside tabel?
-                   if    s" Schedule: " upad place
-                          >opt.xt @  dup >name$ +upad upad" +log
-                         execute 1 scheduled +!
-                   else  drop
-                   then
-           else   next-scheduled-time wait-if-later-today
-           then ;
-
-: find-schedule-record ( mmhh-done - record# ) \ On a sorted schedule table
-   &schedule-table >#records @  swap  2359 min  \ The found time needs to be smaller or equal than 2359
-   &schedule-table >#records @  0
-      do  dup i n>sched.time@  <=        \ search TILL mmhh-done is
-             if     drop i 1- swap leave \  bigger than the the found time
-             then                        \ in the schedule-table
-      loop drop ;
-
-   s" 0 1 cells key: schedule-timer  schedule-timer  Ascending bin-sort" evaluate
-s" cell 1 cells key: schedule-option schedule-option Ascending bin-sort" evaluate
-
-: sort-schedule     ( - )
-  by[ schedule-option schedule-timer ]by  &schedule-table table-sort ;
-
-: init-schedule ( &schedule-file - )
-   to &schedule-file /schedule-file &schedule-table >#records !
-   load-schedule sort-schedule ;
-
-: run-schedule-loop ( - ) begin   schedule  again ;
-
-: sync-schedule     ( - ) stacksize4 newtask4 activate up@ to TaskSchedule
-                          sort-schedule time>mmhh find-schedule-record dup scheduled !
-                          0 max n>sched.time@ Wait-if-later-today
-                          run-schedule-loop ;
-
-: kill-schedule     ( - ) false to StopRunSchedule? TaskSchedule kill ;
-
-: start-schedule    ( - )  sync-schedule
-                           true to StopRunSchedule? ;
-
-: restart-schedule  ( - ) StopRunSchedule?
-                              if  kill-schedule
-                              then
-                          start-schedule ;
-
-: restart-changed-schedule  ( mmhh-done - )  drop restart-schedule ;
-
-
-[ELSE]
-
 : inside-schedule? ( n - opt.record flag )
     &schedule-table nt>record sched.record-->opt.record ;
 
@@ -200,11 +135,10 @@ s" cell 1 cells key: schedule-option schedule-option Ascending bin-sort" evaluat
 
 : kill-schedule ( - ) false to StopRunSchedule? ;
 
-
 : find-schedule-record ( mmhh-done - record# )  \ On a sorted schedule table
    &schedule-table >#records @  swap  #2359 min \ The found time needs to be smaller or equal than #2359
    &schedule-table >#records @  0
-      do  dup i n>sched.time@  <=                \ search as long as the mmhh-done is
+      do  dup i n>sched.time@  <=               \ search as long as the mmhh-done is
              if     drop i 1- -1 max swap leave \ Set the found entry to the previous entry
              then
       loop drop ;
@@ -310,7 +244,6 @@ create-timer: ttimer-WaitForsleeping
            then
        then ;
 
-[THEN]
 
 : (StopRunSchedule)   ( - )
      StopRunSchedule?
@@ -354,7 +287,7 @@ ALSO HTML
       </tr>
       <tr> ( xt-option-list - ) add-schedule-lines </tr>
       <tr>  <td> +HTML| <form action="/Scheduled=nn">|
-                     s" Reboot" 2dup <cssbutton>
+                     s" Reboot." 2dup <cssbutton>
              </form> </td>
             <td> +HTML| <form action="/Scheduled=nn">|   \ <form>
                    StopRunSchedule?
@@ -407,8 +340,6 @@ ALSO HTML
    s" Remove " #option-records 3 roll <<option-cap>> ;
 
 
-PREVIOUS
-
 TCP/IP DEFINITIONS
 
 : SetEntry-schedule  ( schedule.record#  hh mm #DropDown - )
@@ -445,14 +376,19 @@ TCP/IP DEFINITIONS
       else  drop
       then ;
 
+
 : StopRunSchedule   ( - )  (StopRunSchedule)   ;
 
+also html
+
+: Reboot. ( - )  MsgPageReboot ; 
 
 S" cforth" ENVIRONMENT? [IF] DROP
         : clr-req-buf ( -- )    req-buf /req-buf s" %3A" BlankString 2drop ;
 [ELSE]  : clr-req-buf ( -- )    req-buf lcount   s" %3A" BlankString 2drop ;
 [THEN]
 
-FORTH DEFINITIONS
+PREVIOUS PREVIOUS FORTH DEFINITIONS
+
 
 \ \s

@@ -1,4 +1,4 @@
-marker -table_sort.f \ 07-09-2023
+marker -table_sort.f \ 06-06-2025
 
 
 0 [IF]
@@ -32,8 +32,6 @@ Testet under Cforth, Win32forth and Gforth.
 
 [THEN]
 
-
-
 s" gforth" ENVIRONMENT? [IF] 2drop
 
 : cells+  ( a1 n1 -- a1+n1*cell )      s" cells + "     evaluate ; immediate
@@ -60,7 +58,6 @@ alias &key-len     cell+
 : >record-size             ( &table - &size-records )   2 cells+ ;
 
 [THEN]
-
 
 \ Adressing the table properties:
 
@@ -125,40 +122,40 @@ alias &key-len     cell+
 
 : CmpBy  ( cand1 cand2  bystacktop #keys - f )
    true   locals| flag #keys  bystacktop cand2 cand1 |
-   #keys 0
-        do   cand1 cand2  bystacktop i cells+ @ dup 3 cells+ @ execute
-             dup 0=
-                if    drop
-                else   bystacktop i cells+ @ Descending?
-                        if    0<
-                        else  0>
-                        then
-                      to flag leave             \ 0=exch
-                then
-        loop
+   #keys 0  do
+      cand1 cand2  bystacktop i cells+ @ dup 3 cells+ @ execute dup 0=  if
+         drop
+      else
+         bystacktop i cells+ @ Descending?  if
+            0<  else  0>  then
+         to flag leave             \ 0=exch
+      then
+   loop
    flag ;
 
 : xdrop  ( nx..n1 #n - )  >r   sp@ r> 1- 0 max cells+ sp! drop ;
-: gap*3  ( #records - #records gap )  1  begin  3 * 1+ 2dup 1+ u< until  ;
+: gap*3  ( #records - #records gap )  1  begin  3 * 1+ 2dup 1+ u<  until  ;
 
 : table-sort  ( keyx..key1 #keys &table -- )  \ Uses a shellsort.
-    sp@ 2 cells+ rot locals| #keys by &table |
-    &table >table-aptrs @
-    &table >#records @ dup 2 <
-      if    2drop
-      else  gap*3
-            begin  3 / dup
-            while  2dup - >r dup cells r> 0
-                      do  dup 4 pick dup i cells +
-                            do  dup i + dup @  &table rt>record
-                                i tuck @ &table rt>record  by #keys CmpBy
-                                    if    2drop  leave
-                                    then
-                                xchange dup negate
-                            +loop  drop
-                       loop  drop
-           repeat  2drop drop
-      then
+   sp@ 2 cells+ rot locals| #keys by &table |
+   &table >table-aptrs @
+   &table >#records @ dup 2 <  if
+      2drop
+   else
+      gap*3  begin
+         3 / dup
+      while
+          2dup - >r dup cells r> 0  do
+             dup 4 pick dup i cells +  do
+                dup i + dup @  &table rt>record
+                i tuck @ &table rt>record  by #keys CmpBy  if
+                   2drop  leave
+                then
+                xchange dup negate
+             +loop  drop
+          loop  drop
+       repeat  2drop drop
+    then
     #keys xdrop ;
 
 : create-file-ptrs ( name -- )
@@ -170,21 +167,19 @@ alias &key-len     cell+
 s" cforth" ENVIRONMENT? 0= [IF]
 
 : extend-file   ( size hndl - )
-    dup>r file-size drop d>s +
-    s>d r@ resize-file abort" Can't extend file."
-    r> close-file  drop ;
+   dup>r file-size drop d>s +
+   s>d r@ resize-file abort" Can't extend file."
+   r> close-file  drop ;
 [ELSE]  drop
 [THEN]
 
 : add-ptrs      ( record-size aptrs  #start #end - )
-      do  2dup i * swap   i cells + !
-      loop 2drop ;
+   do  2dup i * swap   i cells + !  loop  2drop ;
 
 : build-ptrs    ( aptrs record-size #records -- )  0  add-ptrs ;
 
 : allocate-ptrs ( #records -- &aptrs )
-    cells allocate
-       if   cr ." The allocation of address pointers failed."  quit
-       then ;
+   cells allocate  if
+      cr ." The allocation of address pointers failed."  quit  then ;
 
 \ \s

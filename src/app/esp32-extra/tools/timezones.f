@@ -1,9 +1,9 @@
-marker -timezones.fth cr cr lastacf .name #19 to-column .( 05-12-2023 )
+marker -timezones.f cr cr lastacf .name #19 to-column .( 23-04-2025 )
 
 0 [if]
 Ref: https://en.wikipedia.org/wiki/Daylight_saving_time_by_country
      https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#Time_Zone_abbreviations
-     https://www.worldtimebuddy.com/
+     https://time.is/London
 
 Setting the right timezone with minimal memory usage:
 
@@ -32,7 +32,7 @@ create Dhaka 6 utc-only,
 
 When you would like to add time zones / countries here:
 See input-tz-rule in tests/test_time.fth
-The UTC field is filled with the difference in minutes from GMT
+The UTC field is filled with the difference in minutes from UTC
 Add countries / time zones in reversed alphabetical order.
 
 Notes: 1) Utc-offset Shift and Change are stored in minutes with an offset
@@ -44,37 +44,36 @@ $7fff constant 16bneg     variable #tz   0 #tz !
 : incr-tz   ( - ) 1 #tz +! ;
 : utc-only, ( Utc+ - ) #60 * $5fff + w, ; \ To store the Utc field when NO timesaving are used.
 
+create UTC incr-tz  incr-tz 0 utc-only,
+
 create South-Africa   incr-tz   2 utc-only,
 
-create Paraguay incr-tz
- #32587 w, #32827 w, #32767 w, #32766 w, #0 c, #10 c, #0 c, #32767 w, #32766 w, #0 c, #3 c, #0 c,
+create Paraguay incr-tz -3 utc-only,
 
 create palestine incr-tz
- #32887 w, #32827 w, #32887 w, #32766 w, #6 c, #4 c, #0 c, #32887 w, #32766 w, #0 c, #10 c, #1 c,
+ #32947 w, #32827 w, #32887 w, #32766 w, #6 c, #4 c, #0 c, #32887 w, #32766 w, #0 c, #10 c, #1 c,
 
 create New_Zealand incr-tz
  #33547 w, #32827 w, #32887 w, #32766 w, #0 c, #9 c, #0 c, #32887 w, #32768 w, #0 c, #4 c, #0 c,
 
 create moldova incr-tz
- #32887 w, #32827 w, #32887 w, #32766 w, #0 c, #3 c, #0 c, #32947 w, #32766 w, #0 c, #10 c, #0 c,
+ #32947 w, #32827 w, #32887 w, #32766 w, #0 c, #3 c, #0 c, #32947 w, #32766 w, #0 c, #10 c, #0 c,
 
 create Lebanon incr-tz
- #32887 w, #32827 w, #32767 w, #32766 w, #4 c, #3 c, #0 c, #32767 w, #32766 w, #0 c, #10 c, #0 c,
+ #32947 w, #32827 w, #32767 w, #32766 w, #4 c, #3 c, #0 c, #32767 w, #32766 w, #0 c, #10 c, #0 c,
 
 create Japan incr-tz 9 utc-only,
 
 create Israel incr-tz
- #32887 w, #32827 w, #32887 w, #32766 w, #0 c, #3 c, #2 c, #32887 w, #32766 w, #0 c, #10 c, #0 c,
-
-create Greenwich-Mean-Time incr-tz  0 utc-only,
+ #32947 w, #32827 w, #32887 w, #32766 w, #0 c, #3 c, #2 c, #32887 w, #32766 w, #0 c, #10 c, #0 c,
 
 create Europe/Moscow 3 utc-only,
 
 create Europe/London  incr-tz
- #32767 w, #32827 w, #32827 w, #32766 w, #0 c, #3 c, #0 c, #32887 w, #32766 w, #0 c, #10 c, #0 c,
+ #32827 w, #32827 w, #32827 w, #32766 w, #0 c, #3 c, #0 c, #32887 w, #32766 w, #0 c, #10 c, #0 c,
 
 create Europe/Amsterdam incr-tz
- #32827 w, #32827 w, #32887 w, #32766 w, #0 c, #3 c, #0 c, #32947 w, #32766 w, #0 c, #10 c, #0 c,
+ #32887 w, #32827 w, #32887 w, #32766 w, #0 c, #3 c, #0 c, #32947 w, #32766 w, #0 c, #10 c, #0 c,
 
 create Egypt incr-tz
  #32887 w, #32827 w, #32767 w, #32766 w, #5 c, #3 c, #0 c, #34207 w, #32766 w, #4 c, #10 c, #0 c,
@@ -85,10 +84,10 @@ create cuba incr-tz
 create China incr-tz 8 utc-only,
 
 create Chile incr-tz
- #32587 w, #32827 w, #34207 w, #32768 w, #6 c, #9 c, #0 c, #34207 w, #32768 w, #6 c, #4 c, #0 c,
+ #32527 w, #32827 w, #34207 w, #32768 w, #6 c, #9 c, #0 c, #34207 w, #32768 w, #6 c, #4 c, #0 c,
 
 create Australia/Melbourne incr-tz
- #33427 w, #32827 w, #32887 w, #32768 w, #0 c, #10 c, #0 c, #32947 w, #32768 w, #0 c, #4 c, #0 c,
+ #33367 w, #32827 w, #32887 w, #32768 w, #0 c, #10 c, #0 c, #32947 w, #32768 w, #0 c, #4 c, #0 c,
 
 create Australia/Lord-Howe-Island incr-tz
  #33427 w, #32797 w, #32887 w, #32768 w, #0 c, #10 c, #0 c, #32887 w, #32768 w, #0 c, #4 c, #0 c,

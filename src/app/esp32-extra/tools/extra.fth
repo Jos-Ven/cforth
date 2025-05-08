@@ -1,4 +1,4 @@
-marker -extra.fth  cr lastacf .name #19 to-column .( 05-05-2025 ) \ By J.v.d.Ven
+marker -extra.fth  cr lastacf .name #19 to-column .( 08-05-2025 ) \ By J.v.d.Ven
 \ Additional words I often use.
 
 \ 14-02-2025: Replaced TcpPort by SelectTcpPort
@@ -26,7 +26,7 @@ alias word-split lwsplit
             false
          then
    else
-       0
+      false
    then
 ;
 : si ( <word> - )
@@ -52,13 +52,17 @@ alias init-sysled noop
 char , value seperator
 
 : (xud,.)       ( ud seperator -- a1 n1 )
-   >r
-   <#                         \ every 'seperator' digits from right
-   r@ 0 do # 2dup d0= ?leave loop
-        begin   2dup d0= 0=   \ while not a double zero
-        while   seperator hold
-            r@ 0  do # 2dup d0= ?leave  loop
-        repeat  #> r> drop
+   >r <# r@ 0  do        \ every 'seperator' digits from right
+      # 2dup d0= ?leave
+   loop
+   begin
+      2dup d0= 0=        \ while not a double zero
+   while
+      seperator hold r@ 0  do
+          # 2dup d0= ?leave
+      loop
+   repeat
+   #> r> drop
 ;
 : (ud,.)        ( ud -- a1 n1 )
    base @                     \ get the base
@@ -67,7 +71,7 @@ char , value seperator
    #4 + (xud,.)               \ display seperators every 3 or 4 digits
 ;
 : ud,.r  ( ud l -- )              \ display double right justified, with seperator
-    >r (ud,.) r> over - spaces type ;
+   >r (ud,.) r> over - spaces type ;
 
 : ud,.  ( ud -- ) 0 ud,.r ;       \ display double unsigned, with seperator
 : u,.r  ( u l -- ) 0 swap ud,.r ; \ display number unsigned, justified in field, with seperator
@@ -115,7 +119,7 @@ variable >top_fast_mem   >top_fast_mem off \ -/- 34 bytes used by the os
 
 create-timer: ttimer
 : test-1second ( - )
-    ttimer start-timer   begin   f# 1e6 ttimer tElapsed?  until ;
+   ttimer start-timer   begin   f# 1e6 ttimer tElapsed?  until ;
 
 test-1second
 [then]
@@ -129,17 +133,17 @@ test-1second
 2variable (time-start)    f# 0 fvalue trim-time
 
 : set-trim-time ( - )
-    1 ms (time-start) get-system-time!
-    usf@ (time-start) 2@ system-time>f f- to trim-time
+   1 ms (time-start) get-system-time!
+   usf@ (time-start) 2@ system-time>f f- to trim-time
 ;
 : time-reset ( - )
-    trim-time f0=  if
+   trim-time f0=  if
       set-trim-time
    then
    (time-start) get-system-time!
 ;
 : us-elapsed ( us-start seconds-start - ) ( f: usf@ - us-elapsed )
-     system-time>f f- trim-time f-
+   system-time>f f- trim-time f-
 ;
 : .elapsed ( - )  usf@  (time-start) 2@ us-elapsed fus>fsec fe. ." sec." ;
 
@@ -176,7 +180,7 @@ f# 180e3 fvalue next-measurement
 
 #6000 to wifi-timeout
 : wifi-open-station ( retr wifi-timeout wifi-storage &ss sscnt  &pw pwcnt - flag )
-    5 roll wifi-open nip nip
+   5 roll wifi-open nip nip
 ;
 \ For an extra uart
 0    value uart_num
@@ -263,7 +267,7 @@ patch check-conditional here <resolve
 : lfield:    ( n1 <"name"> -- n2 ) ( addr -- 'addr )  4 +field ;
 : xfield:    ( n1 <"name"> -- n2 ) ( addr -- 'addr )  8 +field ;
 ENVIRONMENT DEFINITIONS
-      : X:STRUCTURES ;
+   : X:STRUCTURES ;
 FORTH DEFINITIONS
 : perform ( adr - )  s" @ execute " evaluate ; immediate
 
@@ -283,7 +287,7 @@ end-structure
 HIDDEN DEFINITIONS
 
 : >circular-index-abs ( i &CBuffer - i-Cbuffer )
-    dup >cbuf-count @ swap >max-records @ 2dup >  if
+   dup >cbuf-count @ swap >max-records @ 2dup >  if
       >r + r>  /mod drop
    else
       2drop
@@ -347,7 +351,7 @@ defer .chained
    repeat drop saved-rp @ rp!
 ;
 : last-xt, ( - )
-   s" lastacf  [ifndef]  id:  xtliteral  [else]  literal  [then] " evaluate ;
+   s" lastacf  [ifndef]  id:  xtliteral  [else]  literal  [then] " evaluate  ;
 
 0 [if] \ EG:
 variable test-chain
@@ -358,7 +362,7 @@ test-chain chainperform
 
 PREVIOUS
 
-: b.     ( n -  )  base @ 2 base ! swap . base ! ;
+: b.    ( n -  )  base @ 2 base ! swap . base ! ;
 : start-length ( bStart bEnd  - bStart length )  over - 1+ ;
 : #mask (  bstart length -- n2 )  \ Create a mask at bstart
    >r -1 r@ rshift  r> lshift invert swap lshift
@@ -443,10 +447,10 @@ PREVIOUS
 0 value tmp$
 0 value LogLine$ \ To show stacks on a remote system
 : init-HtmlPage ( - )
-    /HtmlPage cell+ allocate
-    abort" Allocating HtmlPage failed " dup to HtmlPage$ off
-    #255 allocate   abort" Allocating tmp$ failed "     to tmp$
-    #255 allocate   abort" Allocating LogLine$ failed " to  LogLine$
+   /HtmlPage cell+ allocate
+   abort" Allocating HtmlPage failed " dup to HtmlPage$ off
+   #255 allocate   abort" Allocating tmp$ failed "     to tmp$
+   #255 allocate   abort" Allocating LogLine$ failed " to  LogLine$
 ;
 : rjust ( a u width char -- a2 u2 )
    >r over - 0 max dup tmp$ !
@@ -466,9 +470,9 @@ PREVIOUS
    then
 ;
 : @file ( buffer cnt filename cnt - #read ) \ Place a file in a buffer
-    r/o open-file throw  dup>r
-    read-file throw
-    r> close-file drop
+   r/o open-file throw  dup>r
+   read-file throw
+   r> close-file drop
 ;
 : hold"       ( - ) [CHAR] " hold ;
 : hold"bl     ( - ) bl hold hold" ;
@@ -483,11 +487,11 @@ PREVIOUS
    r>  close-file drop
 ;
 : open-file-append  ( filename cnt - hndl ) \ Points to the last postion in a file
-    2dup r/w open-file  if
-       drop r/w create-file throw      \ Create the file when it does not exist
-    else
-       >r 2drop   r@ file-size throw   r@ reposition-file throw r>
-    then
+   2dup r/w open-file  if
+      drop r/w create-file throw      \ Create the file when it does not exist
+   else
+      >r 2drop   r@ file-size throw   r@ reposition-file throw r>
+   then
 ;
 : WriteFile ( txt cnt hndl - )  write-file throw ;
 : writeHTML  ( filename cnt - )          \ Write HtmlPage$ to file
@@ -514,21 +518,20 @@ PREVIOUS
    dup   context #vocs 1- ta+  token!   execute
 ;
 : enter-wifi-settings ( passwordBuf ssidBuf - )
-    2>r
-    cr ." Setting up a WiFi connection. The SSID and password will"
-    cr ." be saved in plain text in wifi_connect.fth on the MCU."
-    cr ." Enter SSID:"     pad dup 50 accept r> place
-       ." Enter Password:" pad dup 50 accept r> place
+   2>r
+   cr ." Setting up a WiFi connection. The SSID and password will"
+   cr ." be saved in plain text in wifi_connect.fth on the MCU."
+   cr ." Enter SSID:"  pad dup 50 accept r> place
+   ." Enter Password:" pad dup 50 accept r> place
 ;
  2 value wifi-#retries    \ -1 for unlimited, 0 for none, otherwise that many
  0 value wifi-storage
 -2 value wifi-logon-state \ -2 not tried   -1 logon failed    0 Logon OK
 
 : wifi-station-on  { &ss sscnt &pw pwcnt -- }
-    base @ decimal ms@ wifi-mode@
-      case
+   base @ decimal ms@ wifi-mode@  case
       1 of ipaddr@ @ 0=  if
-              ." >>> Try a reboot and SET-SSID if needed." cr
+            ." >>> Try a reboot and SET-SSID if needed." cr
            then   endof
       2 of  ." WiFi is already on in AP mode; type wifi-off to stop it"  cr  endof
       3 of  ." WiFi is already on in Sta+AP mode."  cr  endof
@@ -536,12 +539,12 @@ PREVIOUS
             wifi-#retries wifi-timeout wifi-storage
             &ss sscnt  &pw pwcnt wifi-open-station  if
                -1 to wifi-logon-state
-               cr ." >>> WiFi station connection failed. Try SET-SSID" cr
-            else
-               0 to wifi-logon-state
-            then
-      endcase
-    ms@ swap - . ." ms." base !
+                cr ." >>> WiFi station connection failed. Try SET-SSID" cr
+             else
+                0 to wifi-logon-state
+             then
+   endcase
+   ms@ swap - . ." ms." base !
 ;
 2variable sendtcpStats    \ Map: host-id  #written
 2variable UdpPort$ s" 8899" UdpPort$ place
@@ -566,11 +569,11 @@ PREVIOUS
    tmp$ TcpWrite r> sendtcpStats !
 ;
 : SleepIfNotConnected ( #sec-deep-sleep - )
-    ipaddr@ @ 0=  if
-         100 ms cr  ." No connection. Entering sleep mode..."  DeepSleep
-      else
-         drop
-      then
+   ipaddr@ @ 0=  if
+       100 ms cr  ." No connection. Entering sleep mode..."  DeepSleep
+    else
+       drop
+    then
 ;
 : crlf$		( -- adr n )    " "r"n" ;
 : +html_line	( adr n -- )    +html crlf$ +html ;

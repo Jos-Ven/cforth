@@ -29,11 +29,12 @@ alias m-init noop
 ;
 
 : ms>ticks  ( ms -- ticks )
-   esp-clk-cpu-freq #80000000 over =  if
-      drop
-   else
-      #240000000 =  if  exit  else  #1 lshift  then
-   then  #3 /
+   esp-clk-cpu-freq  case
+      #240000000 of  exit  endof
+      #80000000  of        endof
+      drop #1 lshift dup
+   endcase
+   #3 /
 ;
 
 : system-time>f ( us seconds -- ) ( f: -- us )

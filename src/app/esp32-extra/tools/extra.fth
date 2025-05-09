@@ -1,4 +1,4 @@
-marker -extra.fth  cr lastacf .name #19 to-column .( 08-05-2025 ) \ By J.v.d.Ven
+marker -extra.fth  cr lastacf .name #19 to-column .( 23-10-2024 ) \ By J.v.d.Ven
 \ Additional words I often use.
 
 \ 14-02-2025: Replaced TcpPort by SelectTcpPort
@@ -177,6 +177,21 @@ f# 180e3 fvalue next-measurement
 : init-sysled       ( -- )  sysled gpio-is-output ;
 : sysledOn          ( -- )  1 sysled gpio-pin!    ;
 : sysledOff         ( -- )  0 sysled gpio-pin!    ;
+: bold        ( -- ) .esc[ '1' (emit  'm' (emit ; \ VT100
+: norm        ( -- ) .esc[ '0' (emit  'm' (emit ;
+: hide-cursor ( -- ) #out @ .esc[ s" ?25l" type #out ! ;
+: show-cursor ( -- ) #out @ .esc[ s" ?25h" type #out ! ;
+
+: lcount      ( addr -- addr' count ) dup cell + swap @ ;
+: +lplace     ( addr len dest -- )    2dup  >r >r  lcount + swap  cmove r> r> +! ;
+: lplace      ( addr len dest -- )    0 over ! +lplace ;
+: es          ( ?? -- ) ( f: ?? -- )  clear fclear ; \ empty stacks
+: 16bit>32bit ( signed16bits - signed32bits )  dup $7FFF >  if  $FFFF0000 or  then ;
+: 4drop       ( n4 n3 n2 n1 -- )   2drop 2drop ;
+: (number?)   ( addr len -- d1 f1 )  $number?  if   true   else 0. false  then ;
+: -ftrunc     ( f: n - -ftrunc )   fdup ftrunc f-  ;
+: f2drop      ( fs: r1 r2 -- )     fdrop fdrop ;
+: dup>r       ( n1 -- n1 ) ( R: -- n1 ) s" dup >r"  evaluate ; immediate
 
 #6000 to wifi-timeout
 : wifi-open-station ( retr wifi-timeout wifi-storage &ss sscnt  &pw pwcnt - flag )
